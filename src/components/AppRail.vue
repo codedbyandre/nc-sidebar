@@ -91,6 +91,7 @@
 					:href="moreAppsHref"
 					:name="t('sidebar', 'More apps')"
 					:iconPath="mdiViewGridPlusOutline"
+					:active="moreAppsActive"
 					@hint="(target, label, immediate) => hint(t('sidebar', 'More apps'), target, label, immediate)"
 					@unhint="hideTooltip" />
 				<li v-if="!isMobile" class="nc-rail-item">
@@ -141,7 +142,7 @@ import { updatePreferences } from '../api.ts'
 import { useMediaQuery } from '../composables/useMediaQuery.ts'
 import { useTooltip } from '../composables/useTooltip.ts'
 import { RAIL_CONFIG_EVENT } from '../events.ts'
-import { applyRailVariables, iconMask } from '../theme.ts'
+import { applyRailVariables, iconMask, safeHref } from '../theme.ts'
 
 const FALLBACK: RailConfig = {
 	theme: { mode: 'theme', variables: {} },
@@ -166,12 +167,12 @@ const isMobile = useMediaQuery('(max-width: 1024px)')
 const drawerOpen = ref(false)
 const panel = ref<HTMLElement | null>(null)
 const drawerButton = ref<HTMLButtonElement | null>(null)
-const rtl = document.documentElement.dir === 'rtl'
+const rtl = document.documentElement.dir === 'rtl' || document.body?.dir === 'rtl'
 const { tooltip, show: showTooltip, hide: hideTooltip } = useTooltip()
 
 const headerLogo = document.getElementById('nextcloud')
 const logo = {
-	href: headerLogo?.getAttribute('href') ?? generateUrl('/'),
+	href: safeHref(headerLogo?.getAttribute('href') ?? generateUrl('/')),
 	label: headerLogo?.getAttribute('aria-label') ?? t('sidebar', 'Dashboard'),
 	image: headerLogo === null
 		? 'none'
@@ -182,6 +183,7 @@ const logoMask = { maskImage: logo.image, WebkitMaskImage: logo.image }
 
 const isAdmin = getCurrentUser()?.isAdmin === true
 const moreAppsHref = generateUrl('/settings/apps')
+const moreAppsActive = window.location.pathname.endsWith('/settings/apps') || window.location.pathname.includes('/settings/apps/')
 const showMoreApps = computed(() => isAdmin && config.value.showMoreApps)
 
 const layout = computed<'wide' | 'labeled' | 'compact'>(() => {
@@ -230,8 +232,9 @@ function hint(name: string, target: HTMLElement, label: HTMLElement | null, imme
 	if (layout.value === 'wide') {
 		return
 	}
+	const hidden = label === null || label.clientWidth === 0
 	const truncated = label !== null && label.scrollWidth > label.clientWidth
-	if (layout.value === 'compact' || truncated) {
+	if (layout.value === 'compact' || hidden || truncated) {
 		showTooltip(target, name, immediate)
 	}
 }
@@ -366,7 +369,7 @@ function onAppsRefresh(payload: { apps: NavigationEntry[] }): void {
 	entries.value = payload.apps
 }
 
-watch([config, expanded], () => applyRailVariables(config.value, expanded.value), { deep: true })
+watch([config, expanded], () => applyRailVariables(config.value, expanded.value))
 
 watch(isMobile, (mobile) => {
 	hideTooltip()
@@ -381,6 +384,7 @@ watch(drawerOpen, (open) => {
 
 onMounted(() => {
 	applyRailVariables(config.value, expanded.value)
+	panel.value?.querySelector<HTMLElement>('.nc-rail__nav [aria-current="page"]')?.scrollIntoView({ block: 'nearest' })
 	subscribe('nextcloud:app-menu.refresh', onAppsRefresh)
 	subscribe(RAIL_CONFIG_EVENT, onConfigSaved)
 	window.addEventListener('keydown', onGlobalKeydown)
@@ -397,8 +401,8 @@ onBeforeUnmount(() => {
 
 <style>
 :root {
-	--nc-sidebar-width-compact: 64px;
-	--nc-sidebar-width-labeled: 80px;
+	--nc-sidebar-width-compact: 68px;
+	--nc-sidebar-width-labeled: 88px;
 	--nc-sidebar-width-expanded: 248px;
 	--nc-sidebar-ease: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -562,7 +566,7 @@ html.nc-sidebar-drawer-open body {
 	justify-content: center;
 	gap: 8px;
 	height: var(--header-height, 50px);
-	padding-inline: 10px;
+	padding-inline: 6px;
 }
 
 .nc-rail--wide .nc-rail__head {
@@ -572,37 +576,61 @@ html.nc-sidebar-drawer-open body {
 
 .nc-rail__logo {
 	display: flex;
+	flex: 1 1 auto;
 	align-items: center;
 	justify-content: center;
+	box-sizing: border-box;
+	width: 100%;
 	min-width: 44px;
 	height: 40px;
+	padding-inline: 4px;
 	border-radius: var(--border-radius-large, 12px);
 	color: inherit;
 }
 
 .nc-rail__logo-mark {
-	width: 34px;
-	height: 28px;
+	width: 100%;
+	max-width: 50px;
+	height: 34px;
 	background-repeat: no-repeat;
 	background-position: center;
 	background-size: contain;
 }
 
 .nc-rail__logo-mark--tinted {
+	max-width: 42px;
+	height: 30px;
 	background-color: currentColor;
 	mask-repeat: no-repeat;
 	mask-position: center;
 	mask-size: contain;
 }
 
+.nc-rail--labeled .nc-rail__logo-mark {
+	max-width: 74px;
+	height: 36px;
+}
+
+.nc-rail--labeled .nc-rail__logo-mark--tinted {
+	max-width: 52px;
+	height: 32px;
+}
+
 .nc-rail--wide .nc-rail__logo {
 	justify-content: flex-start;
+	padding-inline: 6px;
 }
 
 .nc-rail--wide .nc-rail__logo-mark {
-	width: 96px;
+	max-width: 168px;
+	height: 36px;
 	background-position: left center;
 	mask-position: left center;
+}
+
+.nc-rail--wide .nc-rail__logo-mark--tinted {
+	max-width: 120px;
+	height: 32px;
 }
 
 [dir='rtl'] .nc-rail--wide .nc-rail__logo-mark {
@@ -633,8 +661,14 @@ html.nc-sidebar-drawer-open body {
 	overflow-x: hidden;
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	scrollbar-width: thin;
-	scrollbar-color: color-mix(in srgb, currentColor 35%, transparent) transparent;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.nc-rail__nav::-webkit-scrollbar {
+	display: none;
+	width: 0;
+	height: 0;
 }
 
 .nc-rail__list {
@@ -642,18 +676,24 @@ html.nc-sidebar-drawer-open body {
 	flex-direction: column;
 	gap: 4px;
 	margin: 0;
-	padding: 4px 10px;
+	padding: 6px 8px;
 	list-style: none;
 }
 
 .nc-rail--labeled .nc-rail__list {
-	padding-inline: 4px;
+	gap: 2px;
+	padding: 4px 6px;
 }
 
 .nc-rail__foot {
 	flex: none;
-	padding-block: 8px 12px;
+	padding-block: 4px 8px;
 	border-block-start: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.nc-rail__foot .nc-rail__list {
+	gap: 2px;
+	padding-block: 2px;
 }
 
 .nc-rail__empty {
@@ -811,9 +851,9 @@ html.nc-sidebar-drawer-open body {
 #nc-sidebar-rail .nc-rail--labeled .nc-rail-item__link {
 	flex-direction: column;
 	justify-content: center;
-	gap: 5px;
-	min-height: 58px;
-	padding: 8px 2px 6px;
+	gap: 3px;
+	min-height: 50px;
+	padding: 6px 3px 5px;
 	text-align: center;
 }
 
@@ -821,14 +861,22 @@ html.nc-sidebar-drawer-open body {
 	max-width: 100%;
 	font-size: 11px;
 	font-weight: inherit;
+	line-height: 1.2;
 }
 
-#nc-sidebar-rail .nc-rail--labeled .nc-rail-item__link--toggle .nc-rail-item__label {
+#nc-sidebar-rail .nc-rail--labeled .nc-rail__foot .nc-rail-item__label {
 	display: none;
 }
 
-#nc-sidebar-rail .nc-rail--labeled .nc-rail-item__link--toggle {
-	min-height: 44px;
+#nc-sidebar-rail .nc-rail--compact .nc-rail__foot .nc-rail-item__link,
+#nc-sidebar-rail .nc-rail--labeled .nc-rail__foot .nc-rail-item__link {
+	flex: none;
+	flex-direction: row;
+	justify-content: center;
+	width: 44px;
+	min-height: 40px;
+	margin-inline: auto;
+	padding: 0;
 }
 
 /* Drawer on small screens */

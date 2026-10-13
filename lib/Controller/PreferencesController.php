@@ -9,7 +9,9 @@ declare(strict_types=1);
 
 namespace OCA\Sidebar\Controller;
 
+use OCA\Sidebar\Model\AdminSettings;
 use OCA\Sidebar\Model\InvalidSettings;
+use OCA\Sidebar\Model\RailConfig;
 use OCA\Sidebar\Model\UserPreferences;
 use OCA\Sidebar\Service\AdminSettingsStore;
 use OCA\Sidebar\Service\RailConfigService;
@@ -40,7 +42,7 @@ final class PreferencesController extends OCSController {
 			return new DataResponse([], Http::STATUS_UNAUTHORIZED);
 		}
 
-		return $this->respond($this->userId, $this->preferences->current($this->userId));
+		return $this->respond($this->preferences->current($this->userId));
 	}
 
 	/**
@@ -58,8 +60,9 @@ final class PreferencesController extends OCSController {
 				Http::STATUS_BAD_REQUEST,
 			);
 		}
+		$defaults = $this->adminSettings->current();
 		try {
-			$saved = $this->preferences->update($this->userId, $preferences, $this->adminSettings->current());
+			$saved = $this->preferences->update($this->userId, $preferences, $defaults);
 		} catch (InvalidSettings $e) {
 			$locked = in_array('locked', array_column($e->errors, 'code'), true);
 			return new DataResponse(
@@ -68,7 +71,7 @@ final class PreferencesController extends OCSController {
 			);
 		}
 
-		return $this->respond($this->userId, $saved);
+		return $this->respond($saved, $defaults);
 	}
 
 	#[ApiRoute(verb: 'DELETE', url: '/api/v1/preferences')]
@@ -78,14 +81,15 @@ final class PreferencesController extends OCSController {
 			return new DataResponse([], Http::STATUS_UNAUTHORIZED);
 		}
 
-		return $this->respond($this->userId, $this->preferences->reset($this->userId));
+		return $this->respond($this->preferences->reset($this->userId));
 	}
 
-	private function respond(string $userId, UserPreferences $preferences): DataResponse {
+	private function respond(UserPreferences $preferences, ?AdminSettings $defaults = null): DataResponse {
+		$resolvedDefaults = $defaults ?? $this->adminSettings->current();
 		return new DataResponse([
 			'preferences' => $preferences,
-			'defaults' => $this->adminSettings->current(),
-			'rail' => $this->railConfig->forUser($userId),
+			'defaults' => $resolvedDefaults,
+			'rail' => RailConfig::resolve($resolvedDefaults, $preferences),
 		]);
 	}
 }

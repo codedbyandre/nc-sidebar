@@ -31,7 +31,7 @@ The app stores no user accounts and sends no data to the author. Removing the ap
 Ausblenden entfernt eine App nur aus der Seitenleiste. Der Zugriff auf die App bleibt bestehen.
 
 Die App speichert keine Benutzerkonten und sendet keine Daten an den Autor. Beim Entfernen der App werden ihre Einstellungen und alle persönlichen Einstellungen gelöscht.]]></description>
-	<version>0.2.0</version>
+	<version>0.3.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author homepage="https://github.com/codedbyandre">André Wiesehoff</author>
 	<namespace>Sidebar</namespace>

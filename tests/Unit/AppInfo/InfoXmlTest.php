@@ -17,7 +17,7 @@ final class InfoXmlTest extends TestCase {
 		self::assertNotFalse($info);
 		self::assertSame('sidebar', (string)$info->id);
 		self::assertSame('Sidebar', (string)$info->namespace);
-		self::assertSame('0.2.0', (string)$info->version);
+		self::assertSame('0.3.0', (string)$info->version);
 		self::assertSame(0, count($info->navigations));
 	}
 }

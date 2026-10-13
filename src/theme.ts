@@ -6,6 +6,28 @@ import type { ColorMode, RailConfig } from './types.ts'
 const LIGHT_TEXT = '#ffffff'
 const DARK_TEXT = '#000000'
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
+const ALLOWED_THEME_VARIABLES: ReadonlySet<string> = new Set([
+	'--nc-sidebar-background',
+	'--nc-sidebar-text',
+	'--nc-sidebar-border',
+])
+const UNSAFE_CSS_VALUE = /[;{}]|url\s*\(/i
+const SAFE_ICON_URL = /^(?:\/(?!\/)|https?:\/\/)/i
+const SAFE_HREF_URL = /^(?:\/(?!\/)|https?:\/\/|#)/i
+
+/**
+ * Sanitize a navigation or logo href before binding it to an anchor element.
+ * Rejects dangerous schemes such as `javascript:` or `data:`.
+ *
+ * @param url - target URL
+ */
+export function safeHref(url: string): string {
+	const trimmed = url.trim()
+	if (trimmed === '' || !SAFE_HREF_URL.test(trimmed)) {
+		return '#'
+	}
+	return trimmed
+}
 
 /**
  * Lowercase #rrggbb, or null when the input is not a hex color.
@@ -93,7 +115,12 @@ export function themeVariables(mode: ColorMode, customColor: string | null): Rec
  * @param url - icon URL
  */
 export function iconMask(url: string): Record<string, string> {
-	const value = `url("${url.replace(/"/g, '%22')}")`
+	const trimmed = url.trim()
+	if (trimmed === '' || !SAFE_ICON_URL.test(trimmed)) {
+		return {}
+	}
+	const escaped = trimmed.replace(/["\\\n\r()]/g, (char) => encodeURIComponent(char))
+	const value = `url("${escaped}")`
 	return { maskImage: value, WebkitMaskImage: value }
 }
 
@@ -121,7 +148,13 @@ export function widthVariable(expanded: boolean, showLabels: boolean): string {
 export function applyRailVariables(config: RailConfig, expanded: boolean): void {
 	const root = document.body.style
 	root.setProperty('--nc-sidebar-width', widthVariable(expanded, config.showLabels))
+	for (const name of ALLOWED_THEME_VARIABLES) {
+		root.removeProperty(name)
+	}
 	for (const [name, value] of Object.entries(config.theme.variables)) {
+		if (!ALLOWED_THEME_VARIABLES.has(name) || typeof value !== 'string' || UNSAFE_CSS_VALUE.test(value)) {
+			continue
+		}
 		root.setProperty(name, value)
 	}
 }

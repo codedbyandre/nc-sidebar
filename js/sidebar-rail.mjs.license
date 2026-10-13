@@ -8,5 +8,5 @@ This file is generated from multiple sources. Included packages:
 	- version: 7.4.47
 	- license: Apache-2.0
 - sidebar
-	- version: 0.2.0
+	- version: 0.3.0
 	- license: AGPL-3.0-or-later

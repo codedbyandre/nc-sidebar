@@ -8,7 +8,7 @@
 		<a
 			class="nc-rail-item__link"
 			:class="{ 'nc-rail-item__link--active': active }"
-			:href="href"
+			:href="normalizedHref"
 			:target="external ? '_blank' : undefined"
 			:rel="external ? 'noopener noreferrer' : undefined"
 			:aria-current="active ? 'page' : undefined"
@@ -19,7 +19,7 @@
 			@blur="emit('unhint')">
 			<span class="nc-rail-item__icon">
 				<RailIcon v-if="iconPath" :path="iconPath" />
-				<span v-else class="nc-rail-item__image" :style="iconMask(icon)" />
+				<span v-else class="nc-rail-item__image" :style="maskStyle" />
 				<span v-if="unread > 0" class="nc-rail-item__badge" aria-hidden="true">{{ badge }}</span>
 			</span>
 			<span ref="labelElement" class="nc-rail-item__label">{{ name }}</span>
@@ -32,7 +32,7 @@
 import { n } from '@nextcloud/l10n'
 import { computed, ref } from 'vue'
 import RailIcon from './RailIcon.vue'
-import { iconMask } from '../theme.ts'
+import { iconMask, safeHref } from '../theme.ts'
 
 const props = withDefaults(defineProps<{
 	/** Link target */
@@ -65,6 +65,8 @@ const emit = defineEmits<{
 }>()
 
 const labelElement = ref<HTMLElement | null>(null)
+const normalizedHref = computed(() => safeHref(props.href))
+const maskStyle = computed(() => iconMask(props.icon))
 
 const badge = computed(() => (props.unread > 99 ? '99+' : String(props.unread)))
 

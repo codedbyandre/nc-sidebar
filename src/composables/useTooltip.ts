@@ -30,7 +30,7 @@ export function useTooltip(): {
 
 	const place = (target: HTMLElement, text: string): void => {
 		const rect = target.getBoundingClientRect()
-		const rtl = document.documentElement.dir === 'rtl'
+		const rtl = document.documentElement.dir === 'rtl' || document.body?.dir === 'rtl'
 		tooltip.value = {
 			text,
 			top: rect.top + rect.height / 2,

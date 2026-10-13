@@ -78,24 +78,29 @@ const sample = computed(() => props.apps.slice(0, 5))
 	align-items: center;
 	gap: 4px;
 	box-sizing: border-box;
-	width: 56px;
-	padding-block: 12px;
+	width: 58px;
+	padding-block: 10px;
 	border-inline-end: 1px solid var(--nc-sidebar-border);
 	background-color: var(--nc-sidebar-background);
 	color: var(--nc-sidebar-text);
 }
 
 .sidebar-preview__rail--labeled {
-	width: 72px;
+	width: 78px;
 }
 
 .sidebar-preview__logo {
-	width: 26px;
-	height: 16px;
-	margin-block-end: 10px;
+	width: 34px;
+	height: 20px;
+	margin-block-end: 8px;
 	border-radius: 8px;
 	background-color: currentColor;
 	opacity: 0.85;
+}
+
+.sidebar-preview__rail--labeled .sidebar-preview__logo {
+	width: 46px;
+	height: 22px;
 }
 
 .sidebar-preview__item {
@@ -111,9 +116,9 @@ const sample = computed(() => props.apps.slice(0, 5))
 }
 
 .sidebar-preview__rail--labeled .sidebar-preview__item {
-	width: 62px;
-	min-height: 48px;
-	padding: 4px 2px;
+	width: 66px;
+	min-height: 44px;
+	padding: 4px 3px;
 }
 
 .sidebar-preview__item--active {

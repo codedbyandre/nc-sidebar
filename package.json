@@ -1,6 +1,6 @@
 {
   "name": "sidebar",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Sidebar for Nextcloud",
@@ -10,7 +10,7 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "typecheck": "vue-tsc --noEmit",
-    "build": "vite --mode production build",
+    "build": "rm -rf css js && vite --mode production build",
     "dev": "export NODE_ENV=development; vite --mode development build",
     "watch": "export NODE_ENV=development; vite --mode development build --watch"
   },
