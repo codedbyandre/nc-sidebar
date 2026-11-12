@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- Hid the sidebar while an app shows a fullscreen view without the Nextcloud header, such as the EuroOffice editor, so it no longer covers the editor (#1).
+- Kept the content of apps that position their own container, such as Markdown Wiki, beside the sidebar instead of underneath it (#1).
+
 ## 0.3.0 - 2026-10-13
 
 ### Changed

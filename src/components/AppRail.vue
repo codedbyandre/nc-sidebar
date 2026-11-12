@@ -139,6 +139,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import RailIcon from './RailIcon.vue'
 import RailItem from './RailItem.vue'
 import { updatePreferences } from '../api.ts'
+import { useLayoutGuard } from '../composables/useLayoutGuard.ts'
 import { useMediaQuery } from '../composables/useMediaQuery.ts'
 import { useTooltip } from '../composables/useTooltip.ts'
 import { RAIL_CONFIG_EVENT } from '../events.ts'
@@ -169,6 +170,8 @@ const panel = ref<HTMLElement | null>(null)
 const drawerButton = ref<HTMLButtonElement | null>(null)
 const rtl = document.documentElement.dir === 'rtl' || document.body?.dir === 'rtl'
 const { tooltip, show: showTooltip, hide: hideTooltip } = useTooltip()
+const isDesktop = computed(() => !isMobile.value)
+const { fullscreen } = useLayoutGuard(panel, isDesktop, rtl)
 
 const headerLogo = document.getElementById('nextcloud')
 const logo = {
@@ -338,7 +341,7 @@ function onPanelKeydown(event: KeyboardEvent): void {
  * @param event - key pressed anywhere on the page
  */
 function onGlobalKeydown(event: KeyboardEvent): void {
-	if (!event.altKey || !event.shiftKey || event.code !== 'KeyS') {
+	if (!event.altKey || !event.shiftKey || event.code !== 'KeyS' || fullscreen.value) {
 		return
 	}
 	event.preventDefault()
@@ -374,6 +377,13 @@ watch([config, expanded], () => applyRailVariables(config.value, expanded.value)
 watch(isMobile, (mobile) => {
 	hideTooltip()
 	if (!mobile) {
+		closeDrawer(false)
+	}
+})
+
+watch(fullscreen, (hidden) => {
+	if (hidden) {
+		hideTooltip()
 		closeDrawer(false)
 	}
 })
@@ -452,6 +462,17 @@ onBeforeUnmount(() => {
 html.nc-sidebar-drawer-open,
 html.nc-sidebar-drawer-open body {
 	overflow: hidden;
+}
+
+/* An app hid the header for a fullscreen view (inline office editors).
+   The rail steps aside and gives its width back to the content. */
+
+html.nc-sidebar-fullscreen #nc-sidebar-rail {
+	display: none;
+}
+
+html.nc-sidebar-fullscreen body {
+	--nc-sidebar-width: 0px !important;
 }
 
 /* Menu button in the header, small screens only */
