@@ -60,10 +60,14 @@ export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boole
 		shifted = null
 	}
 
-	const update = (): void => {
+	const detectFullscreen = (): void => {
 		fullscreen.value = header !== null && isHidden(header)
 		document.documentElement.classList.toggle(FULLSCREEN_CLASS, fullscreen.value)
+	}
 
+	// Once shifted, the content stays shifted: measuring again would first have
+	// to remove the offset, which restarts the content's width transition.
+	const fitContent = (): void => {
 		const target = content()
 		if (fullscreen.value || !desktop.value || target === null || rail.value === null) {
 			unshift()
@@ -79,7 +83,14 @@ export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boole
 		}
 	}
 
+	const update = (): void => {
+		detectFullscreen()
+		fitContent()
+	}
+
 	onMounted(() => {
+		// Resizes catch a header that disappears. Attribute changes catch apps that
+		// move the content by class or style without changing its size.
 		resizeObserver = new ResizeObserver(update)
 		mutationObserver = new MutationObserver(update)
 		for (const element of [header, content()]) {
