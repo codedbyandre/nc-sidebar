@@ -35,6 +35,15 @@ export function overlaps(rail: DOMRectReadOnly, content: DOMRectReadOnly, rtl: b
 }
 
 /**
+ * Whether a transition or animation on the element itself is still running.
+ *
+ * @param element - element to test
+ */
+export function isAnimating(element: Element): boolean {
+	return element.getAnimations().some((animation) => animation.playState === 'running')
+}
+
+/**
  * Keeps the rail out of the way of apps that change the page layout themselves.
  *
  * - An app that hides the Nextcloud header for a fullscreen view, such as an
@@ -76,6 +85,11 @@ export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boole
 		if (shifted === target) {
 			return
 		}
+		// While the rail or the content animates to a new width, their boxes
+		// cross for a few frames. Measure once both have settled.
+		if (isAnimating(rail.value) || isAnimating(target)) {
+			return
+		}
 		unshift()
 		if (overlaps(rail.value.getBoundingClientRect(), target.getBoundingClientRect(), rtl)) {
 			target.style.setProperty(SHIFT_PROPERTY, SHIFT_VALUE, 'important')
@@ -86,6 +100,12 @@ export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boole
 	const update = (): void => {
 		detectFullscreen()
 		fitContent()
+	}
+
+	const onSettled = (event: TransitionEvent): void => {
+		if (event.target === event.currentTarget) {
+			update()
+		}
 	}
 
 	onMounted(() => {
@@ -100,6 +120,10 @@ export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boole
 			}
 		}
 		mutationObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+		for (const element of [rail.value, content()]) {
+			element?.addEventListener('transitionend', onSettled)
+			element?.addEventListener('transitioncancel', onSettled)
+		}
 		update()
 	})
 
@@ -108,6 +132,10 @@ export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boole
 	onBeforeUnmount(() => {
 		resizeObserver?.disconnect()
 		mutationObserver?.disconnect()
+		for (const element of [rail.value, content()]) {
+			element?.removeEventListener('transitionend', onSettled)
+			element?.removeEventListener('transitioncancel', onSettled)
+		}
 		unshift()
 		document.documentElement.classList.remove(FULLSCREEN_CLASS)
 	})

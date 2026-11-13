@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Renamed the administrators' link to the app management page from “More apps” to “Manage apps”.
 
+### Fixed
+
+- Kept the margin beside the sidebar after switching from the wide to the narrow sidebar. The content no longer moves 8 pixels toward the sidebar until the page is reloaded.
+
 ## 0.3.1 - 2026-11-12
 
 ### Fixed
