@@ -10,6 +10,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 - 2026-11-13
+
+### Added
+
+- Apps can sit under “More”: a button below the visible apps unfolds them in the sidebar, and each person's choice to keep them unfolded is remembered (#2).
+- Administrators choose for each app whether it is in the sidebar, under “More”, or hidden. People can rearrange apps for themselves when allowed, including showing an app the administrator moved under “More” (#2).
+- A button at the start of the header, and Alt+Shift+H, hide the sidebar on the desktop and bring it back. The choice is remembered for each person (#2).
+- Nextcloud's app menu can stay in the header, as an administrator setting that people may override when layout changes are allowed (#2).
+
+### Changed
+
+- Renamed the administrators' link to the app management page from “More apps” to “Manage apps”.
+
 ## 0.3.1 - 2026-11-12
 
 ### Fixed
