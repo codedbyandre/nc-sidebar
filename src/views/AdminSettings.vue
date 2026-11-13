@@ -27,7 +27,10 @@
 							{{ t('sidebar', 'Show the logo at the top') }}
 						</NcCheckboxRadioSwitch>
 						<NcCheckboxRadioSwitch v-model="draft.showMoreApps" type="switch">
-							{{ t('sidebar', 'Show “More apps” for administrators') }}
+							{{ t('sidebar', 'Show “Manage apps” for administrators') }}
+						</NcCheckboxRadioSwitch>
+						<NcCheckboxRadioSwitch v-model="draft.keepAppMenu" type="switch">
+							{{ t('sidebar', 'Keep the app menu in the header') }}
 						</NcCheckboxRadioSwitch>
 					</div>
 				</div>
@@ -43,8 +46,11 @@
 
 		<NcSettingsSection
 			:name="t('sidebar', 'Apps in the sidebar')"
-			:description="t('sidebar', 'Hidden apps disappear from everyone’s sidebar. People can still open them by their address, and an app stays visible while it is open.')">
-			<AppVisibilityList v-model:hidden="draft.hiddenApps" :apps="apps" />
+			:description="t('sidebar', 'Apps under “More” unfold with one click at the end of the sidebar. Hidden apps disappear from everyone’s sidebar. People can still open them by their address, and an app stays visible while it is open.')">
+			<AppVisibilityList
+				:apps="apps"
+				:placements="placements(apps, draft)"
+				@place="(id, placement) => place(draft, id, placement)" />
 		</NcSettingsSection>
 
 		<NcSettingsSection
@@ -55,14 +61,14 @@
 					{{ t('sidebar', 'Choose their own color') }}
 				</NcCheckboxRadioSwitch>
 				<NcCheckboxRadioSwitch v-model="draft.allowUserLayout" type="switch">
-					{{ t('sidebar', 'Show or hide app names') }}
+					{{ t('sidebar', 'Show or hide app names and the app menu in the header') }}
 				</NcCheckboxRadioSwitch>
 				<NcCheckboxRadioSwitch v-model="draft.allowUserHiddenApps" type="switch">
-					{{ t('sidebar', 'Hide additional apps') }}
+					{{ t('sidebar', 'Move apps under “More”, hide them, or show them again') }}
 				</NcCheckboxRadioSwitch>
 			</div>
 			<p class="sidebar-settings__note">
-				{{ t('sidebar', 'Everyone can switch between the narrow and the wide sidebar at any time.') }}
+				{{ t('sidebar', 'Everyone can switch between the narrow and the wide sidebar and hide the sidebar at any time.') }}
 			</p>
 		</NcSettingsSection>
 
@@ -94,6 +100,7 @@ import SaveBar from '../components/settings/SaveBar.vue'
 import { resetAdminSettings, updateAdminSettings } from '../api.ts'
 import { useSettingsForm } from '../composables/useSettingsForm.ts'
 import { announceRailConfig } from '../events.ts'
+import { place, placementOf, placements } from '../placement.ts'
 import { colorProblems } from '../validation.ts'
 
 const apps = loadState<NavigationApp[]>('sidebar', 'navigation-apps', [])
@@ -110,7 +117,7 @@ const colorMode = computed<ColorMode | null>({
 	},
 })
 
-const previewApps = computed(() => apps.filter((app) => !draft.value.hiddenApps.includes(app.id)))
+const previewApps = computed(() => apps.filter((app) => placementOf(app.id, draft.value) === 'visible'))
 
 /**
  * Store the whole form.

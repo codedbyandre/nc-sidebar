@@ -39,7 +39,7 @@ export function errorText(error: FieldError): string {
 		case 'locked':
 			return t('sidebar', 'Your administrator manages this setting.')
 		case 'app_ids':
-			return t('sidebar', 'The list of hidden apps is not valid.')
+			return t('sidebar', 'The list of apps is not valid.')
 		default:
 			return t('sidebar', 'The value of {field} is not valid.', { field: error.field })
 	}

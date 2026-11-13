@@ -35,6 +35,21 @@
 							{{ option.label }}
 						</NcCheckboxRadioSwitch>
 					</fieldset>
+
+					<fieldset v-if="policy.allowUserLayout" class="sidebar-settings__group">
+						<legend class="sidebar-settings__legend">
+							{{ t('sidebar', 'App menu in the header') }}
+						</legend>
+						<NcCheckboxRadioSwitch
+							v-for="option in appMenuOptions"
+							:key="option.value"
+							v-model="appMenuChoice"
+							type="radio"
+							name="sidebar-personal-app-menu"
+							:value="option.value">
+							{{ option.label }}
+						</NcCheckboxRadioSwitch>
+					</fieldset>
 				</div>
 				<RailPreview
 					class="sidebar-settings__preview"
@@ -49,19 +64,20 @@
 		<NcSettingsSection
 			v-if="policy.allowUserHiddenApps"
 			:name="t('sidebar', 'Apps in the sidebar')"
-			:description="t('sidebar', 'Hide apps you rarely use. They stay available by their address, and an app stays visible while it is open.')">
+			:description="t('sidebar', 'Move apps you rarely use under “More”, where they unfold with one click, or hide them. Hidden apps stay available by their address, and an app stays visible while it is open.')">
 			<AppVisibilityList
-				v-model:hidden="draft.hiddenApps"
 				:apps="apps"
-				:locked="policy.hiddenApps" />
+				:placements="placements(apps, draft, policy)"
+				:locked="policy.hiddenApps"
+				@place="(id, placement) => place(draft, id, placement, policy)" />
 			<p class="sidebar-settings__note">
 				<a class="sidebar-settings__link" :href="appOrderUrl">{{ t('sidebar', 'Change the order of your apps') }}</a>
 			</p>
 		</NcSettingsSection>
 
-		<NcSettingsSection :name="t('sidebar', 'Narrow and wide')">
+		<NcSettingsSection :name="t('sidebar', 'Narrow, wide, and hidden')">
 			<p class="sidebar-settings__note sidebar-settings__note--flush">
-				{{ t('sidebar', 'Switch between icons only and icons with names with the button at the bottom of the sidebar, or press Alt+Shift+S. On small screens, the menu button in the header opens the sidebar.') }}
+				{{ t('sidebar', 'Switch between icons only and icons with names with the button at the bottom of the sidebar, or press Alt+Shift+S. The button at the start of the header hides the sidebar and brings it back, as does Alt+Shift+H. On small screens, that button opens the sidebar.') }}
 			</p>
 		</NcSettingsSection>
 
@@ -95,9 +111,10 @@ import SaveBar from '../components/settings/SaveBar.vue'
 import { resetPreferences, updatePreferences } from '../api.ts'
 import { useSettingsForm } from '../composables/useSettingsForm.ts'
 import { announceRailConfig } from '../events.ts'
+import { place, placementOf, placements } from '../placement.ts'
 import { colorProblems } from '../validation.ts'
 
-type PersonalForm = Pick<UserPreferences, 'colorMode' | 'customColor' | 'showLabels' | 'hiddenApps'>
+type PersonalForm = Pick<UserPreferences, 'colorMode' | 'customColor' | 'showLabels' | 'keepAppMenu' | 'hiddenApps' | 'collapsedApps' | 'pinnedApps'>
 
 const apps = loadState<NavigationApp[]>('sidebar', 'navigation-apps', [])
 const policy = ref<AdminSettings>(loadState<AdminSettings>('sidebar', 'admin-settings'))
@@ -108,23 +125,42 @@ const { draft, dirty, busy, savedNotice, error, fieldError, submit, discard } = 
 	(values) => colorProblems(values.colorMode, values.customColor),
 )
 
-const labelOptions = computed(() => [
-	{ value: 'default', label: t('sidebar', 'Default ({state})', { state: policy.value.showLabels ? t('sidebar', 'shown') : t('sidebar', 'hidden') }) },
-	{ value: 'on', label: t('sidebar', 'Show') },
-	{ value: 'off', label: t('sidebar', 'Hide') },
-])
+const labelOptions = computed(() => showHideOptions(policy.value.showLabels))
+const labelChoice = showHideChoice('showLabels')
+const appMenuOptions = computed(() => showHideOptions(policy.value.keepAppMenu))
+const appMenuChoice = showHideChoice('keepAppMenu')
 
-const labelChoice = computed<string>({
-	get: () => (draft.value.showLabels === null ? 'default' : draft.value.showLabels ? 'on' : 'off'),
-	set: (choice) => {
-		draft.value.showLabels = choice === 'default' ? null : choice === 'on'
-	},
-})
+/**
+ * Radio options of a setting that follows the administrator unless overridden.
+ *
+ * @param inherited - the administrator's value
+ */
+function showHideOptions(inherited: boolean): { value: string, label: string }[] {
+	return [
+		{ value: 'default', label: t('sidebar', 'Default ({state})', { state: inherited ? t('sidebar', 'shown') : t('sidebar', 'hidden') }) },
+		{ value: 'on', label: t('sidebar', 'Show') },
+		{ value: 'off', label: t('sidebar', 'Hide') },
+	]
+}
+
+/**
+ * Radio model for such a setting; null in the draft means "default".
+ *
+ * @param field - draft field holding true, false or null
+ */
+function showHideChoice(field: 'showLabels' | 'keepAppMenu') {
+	return computed<string>({
+		get: () => (draft.value[field] === null ? 'default' : draft.value[field] ? 'on' : 'off'),
+		set: (choice) => {
+			draft.value[field] = choice === 'default' ? null : choice === 'on'
+		},
+	})
+}
 
 const effectiveMode = computed<ColorMode>(() => (policy.value.allowUserColor && draft.value.colorMode !== null ? draft.value.colorMode : policy.value.colorMode))
 const effectiveColor = computed(() => (policy.value.allowUserColor && draft.value.colorMode !== null ? draft.value.customColor : policy.value.customColor))
 const effectiveLabels = computed(() => (policy.value.allowUserLayout && draft.value.showLabels !== null ? draft.value.showLabels : policy.value.showLabels))
-const previewApps = computed(() => apps.filter((app) => !policy.value.hiddenApps.includes(app.id) && !draft.value.hiddenApps.includes(app.id)))
+const previewApps = computed(() => apps.filter((app) => placementOf(app.id, draft.value, policy.value) === 'visible'))
 
 /**
  * @param preferences - stored preferences
@@ -134,7 +170,10 @@ function formValues(preferences: UserPreferences): PersonalForm {
 		colorMode: preferences.colorMode,
 		customColor: preferences.customColor,
 		showLabels: preferences.showLabels,
+		keepAppMenu: preferences.keepAppMenu,
 		hiddenApps: preferences.hiddenApps,
+		collapsedApps: preferences.collapsedApps,
+		pinnedApps: preferences.pinnedApps,
 	}
 }
 
@@ -161,9 +200,12 @@ function changes(): Partial<UserPreferences> {
 	}
 	if (policy.value.allowUserLayout) {
 		values.showLabels = draft.value.showLabels
+		values.keepAppMenu = draft.value.keepAppMenu
 	}
 	if (policy.value.allowUserHiddenApps) {
 		values.hiddenApps = draft.value.hiddenApps
+		values.collapsedApps = draft.value.collapsedApps
+		values.pinnedApps = draft.value.pinnedApps
 	}
 	return values
 }

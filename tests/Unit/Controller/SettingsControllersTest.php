@@ -121,6 +121,35 @@ final class SettingsControllersTest extends TestCase {
 		self::assertArrayNotHasKey('alice/preferences', $this->userValues);
 	}
 
+	public function testLockedArrangementOfAppsIs403(): void {
+		$this->admin->update(['allowUserHiddenApps' => false]);
+
+		foreach (['collapsedApps', 'pinnedApps'] as $field) {
+			$response = $this->preferences->update([$field => ['photos']]);
+
+			self::assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+			self::assertSame($field, $response->getData()['errors'][0]['field']);
+		}
+		self::assertArrayNotHasKey('alice/preferences', $this->userValues);
+	}
+
+	public function testOpeningMoreIsSavedEvenWhenEverythingIsLocked(): void {
+		$this->admin->update([
+			'collapsedApps' => ['notes'],
+			'allowUserColor' => false,
+			'allowUserLayout' => false,
+			'allowUserHiddenApps' => false,
+		]);
+
+		$response = $this->preferences->update(['moreOpen' => true, 'railHidden' => true]);
+
+		self::assertSame(Http::STATUS_OK, $response->getStatus());
+		$rail = $response->getData()['rail'];
+		self::assertTrue($rail->moreOpen);
+		self::assertTrue($rail->railHidden);
+		self::assertSame(['notes'], $rail->collapsedApps->toList());
+	}
+
 	public function testPreferencesResetDropsOverrides(): void {
 		$this->preferences->update(['colorMode' => 'neutral']);
 

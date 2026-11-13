@@ -23,7 +23,7 @@
 				v-for="app in filtered"
 				:key="app.id"
 				class="sidebar-apps__row"
-				:class="{ 'sidebar-apps__row--hidden': isHidden(app.id) }">
+				:class="{ 'sidebar-apps__row--hidden': placementOf(app.id) === 'hidden' }">
 				<span class="sidebar-apps__icon-wrap" aria-hidden="true">
 					<span class="sidebar-apps__icon" :style="iconMask(app.icon)" />
 				</span>
@@ -33,12 +33,16 @@
 						{{ t('sidebar', 'Hidden by your administrator') }}
 					</span>
 				</span>
-				<NcCheckboxRadioSwitch
-					type="switch"
-					:modelValue="!isHidden(app.id)"
+				<select
+					class="sidebar-apps__placement"
+					:value="placementOf(app.id)"
 					:disabled="locked.includes(app.id)"
-					:aria-label="t('sidebar', 'Show {app} in the sidebar', { app: app.name })"
-					@update:modelValue="toggle(app.id, $event)" />
+					:aria-label="t('sidebar', 'Where {app} appears', { app: app.name })"
+					@change="emit('place', app.id, ($event.target as HTMLSelectElement).value as Placement)">
+					<option v-for="option in options" :key="option.value" :value="option.value">
+						{{ option.label }}
+					</option>
+				</select>
 			</li>
 		</ul>
 		<p v-if="filtered.length === 0" class="sidebar-apps__empty">
@@ -48,19 +52,18 @@
 </template>
 
 <script setup lang="ts">
-import type { NavigationApp } from '../../types.ts'
+import type { NavigationApp, Placement } from '../../types.ts'
 
 import { n, t } from '@nextcloud/l10n'
 import { computed, ref } from 'vue'
-import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { iconMask } from '../../theme.ts'
 
 const props = withDefaults(defineProps<{
 	/** Apps in navigation order */
 	apps: NavigationApp[]
-	/** Ids hidden by this form */
-	hidden: string[]
+	/** Where each app sits, keyed by id; apps without an entry are visible */
+	placements: Record<string, Placement>
 	/** Ids hidden at a higher level that this form cannot change */
 	locked?: string[]
 }>(), {
@@ -68,8 +71,15 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-	'update:hidden': [ids: string[]]
+	/** An app was moved */
+	place: [id: string, placement: Placement]
 }>()
+
+const options: { value: Placement, label: string }[] = [
+	{ value: 'visible', label: t('sidebar', 'In the sidebar') },
+	{ value: 'more', label: t('sidebar', 'Under “More”') },
+	{ value: 'hidden', label: t('sidebar', 'Hidden') },
+]
 
 const query = ref('')
 
@@ -80,22 +90,13 @@ const filtered = computed(() => {
 		: props.apps.filter((app) => app.name.toLocaleLowerCase().includes(needle))
 })
 
-const visibleCount = computed(() => props.apps.filter((app) => !isHidden(app.id)).length)
+const visibleCount = computed(() => props.apps.filter((app) => placementOf(app.id) === 'visible').length)
 
 /**
  * @param id - app id
  */
-function isHidden(id: string): boolean {
-	return props.locked.includes(id) || props.hidden.includes(id)
-}
-
-/**
- * @param id - app id
- * @param visible - new switch state
- */
-function toggle(id: string, visible: boolean): void {
-	const rest = props.hidden.filter((candidate) => candidate !== id)
-	emit('update:hidden', visible ? rest : [...rest, id])
+function placementOf(id: string): Placement {
+	return props.locked.includes(id) ? 'hidden' : props.placements[id] ?? 'visible'
 }
 </script>
 
@@ -137,7 +138,7 @@ function toggle(id: string, visible: boolean): void {
 	align-items: center;
 	gap: 12px;
 	min-height: 52px;
-	padding-inline: 12px 6px;
+	padding-inline: 12px 8px;
 }
 
 .sidebar-apps__row + .sidebar-apps__row {
@@ -179,6 +180,13 @@ function toggle(id: string, visible: boolean): void {
 
 .sidebar-apps__row--hidden .sidebar-apps__name {
 	color: var(--color-text-maxcontrast);
+}
+
+.sidebar-apps__placement {
+	flex: none;
+	min-width: 150px;
+	max-width: 45%;
+	margin: 0;
 }
 
 .sidebar-apps__note {

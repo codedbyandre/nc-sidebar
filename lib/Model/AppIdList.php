@@ -52,6 +52,10 @@ final readonly class AppIdList implements \JsonSerializable {
 		return new self(array_values(array_unique([...$this->ids, ...$other->ids])));
 	}
 
+	public function without(self $other): self {
+		return new self(array_values(array_diff($this->ids, $other->ids)));
+	}
+
 	/**
 	 * @return list<string>
 	 */

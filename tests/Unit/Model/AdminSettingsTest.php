@@ -78,6 +78,36 @@ final class AdminSettingsTest extends TestCase {
 		self::assertEquals($settings, AdminSettings::defaults()->with($settings->jsonSerialize()));
 	}
 
+	public function testSettingsStoredBeforeMoreExistedStillLoad(): void {
+		$settings = AdminSettings::defaults()->with([
+			'colorMode' => 'theme',
+			'customColor' => null,
+			'showLabels' => false,
+			'expandedByDefault' => false,
+			'showLogo' => true,
+			'showMoreApps' => true,
+			'hiddenApps' => ['activity'],
+			'allowUserColor' => true,
+			'allowUserLayout' => true,
+			'allowUserHiddenApps' => true,
+		]);
+
+		self::assertSame(['activity'], $settings->hiddenApps->toList());
+		self::assertSame([], $settings->collapsedApps->toList());
+		self::assertFalse($settings->keepAppMenu);
+	}
+
+	public function testAppsUnderMoreAreValidatedLikeHiddenApps(): void {
+		$settings = AdminSettings::defaults()->with(['collapsedApps' => ['notes', 'deck', 'notes'], 'keepAppMenu' => true]);
+
+		self::assertSame(['notes', 'deck'], $settings->collapsedApps->toList());
+		self::assertTrue($settings->keepAppMenu);
+		self::assertSame(
+			[['field' => 'collapsedApps', 'code' => 'app_ids'], ['field' => 'keepAppMenu', 'code' => 'type_bool']],
+			$this->errorsOf(['collapsedApps' => ['../etc'], 'keepAppMenu' => 1]),
+		);
+	}
+
 	/**
 	 * @param array<string, mixed> $changes
 	 * @return list<array{field: string, code: string}>

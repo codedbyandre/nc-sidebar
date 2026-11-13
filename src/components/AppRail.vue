@@ -5,7 +5,7 @@
 
 <template>
 	<Teleport to="#nc-sidebar-current-slot">
-		<span v-if="currentApp" class="nc-rail-current">
+		<span v-if="currentApp && !config.keepAppMenu" class="nc-rail-current">
 			<span
 				v-if="currentApp.icon !== ''"
 				class="nc-rail-current__icon"
@@ -20,11 +20,13 @@
 			ref="drawerButton"
 			type="button"
 			class="nc-rail-drawer-button"
-			:aria-label="t('sidebar', 'Open apps')"
-			:aria-expanded="drawerOpen ? 'true' : 'false'"
+			:aria-label="headerButtonLabel"
+			:title="isMobile ? undefined : headerButtonLabel"
+			:aria-expanded="(isMobile ? drawerOpen : !railHidden) ? 'true' : 'false'"
+			:aria-keyshortcuts="isMobile ? undefined : 'Alt+Shift+H'"
 			aria-controls="nc-sidebar-panel"
-			@click="openDrawer">
-			<RailIcon :path="mdiMenu" :size="22" />
+			@click="onHeaderButton">
+			<RailIcon :path="isMobile ? mdiMenu : mdiDockLeft" :size="22" />
 		</button>
 	</Teleport>
 
@@ -39,9 +41,9 @@
 		id="nc-sidebar-panel"
 		ref="panel"
 		class="nc-rail"
-		:class="[`nc-rail--${layout}`, { 'nc-rail--drawer': isMobile, 'nc-rail--open': drawerOpen }]"
+		:class="[`nc-rail--${layout}`, { 'nc-rail--drawer': isMobile, 'nc-rail--open': drawerOpen, 'nc-rail--hidden': desktopHidden }]"
 		:aria-label="t('sidebar', 'Apps')"
-		:inert="isMobile && !drawerOpen"
+		:inert="(isMobile && !drawerOpen) || desktopHidden"
 		:role="isMobile ? 'dialog' : undefined"
 		:aria-modal="isMobile && drawerOpen ? 'true' : undefined"
 		@keydown="onPanelKeydown">
@@ -78,8 +80,43 @@
 					:unread="app.unread"
 					@hint="(target, label, immediate) => hint(app.name, target, label, immediate)"
 					@unhint="hideTooltip" />
+				<li v-if="moreApps.length > 0" class="nc-rail-item nc-rail-item--more">
+					<button
+						type="button"
+						class="nc-rail-item__link nc-rail-item__link--toggle"
+						:aria-expanded="moreOpen ? 'true' : 'false'"
+						:aria-controls="moreOpen ? 'nc-sidebar-more' : undefined"
+						:aria-label="moreLabel"
+						@click="toggleMore"
+						@pointerenter="hintButton($event, moreLabel)"
+						@pointerleave="hideTooltip"
+						@focus="hintButtonFocus($event, moreLabel)"
+						@blur="hideTooltip">
+						<span class="nc-rail-item__icon">
+							<RailIcon :path="moreOpen ? mdiChevronUp : mdiChevronDown" />
+							<span v-if="!moreOpen && moreUnread > 0" class="nc-rail-item__dot" />
+						</span>
+						<span class="nc-rail-item__label">{{ moreOpen ? t('sidebar', 'Less') : t('sidebar', 'More') }}</span>
+						<span v-if="!moreOpen" class="nc-rail-item__count nc-rail-item__count--plain" aria-hidden="true">{{ moreApps.length }}</span>
+					</button>
+				</li>
 			</ul>
-			<p v-if="visibleApps.length === 0" class="nc-rail__empty">
+			<ul
+				v-if="moreOpen && moreApps.length > 0"
+				id="nc-sidebar-more"
+				ref="moreList"
+				class="nc-rail__list nc-rail__list--more">
+				<RailItem
+					v-for="app in moreApps"
+					:key="app.id"
+					:href="app.href"
+					:name="app.name"
+					:icon="app.icon"
+					:unread="app.unread"
+					@hint="(target, label, immediate) => hint(app.name, target, label, immediate)"
+					@unhint="hideTooltip" />
+			</ul>
+			<p v-if="visibleApps.length === 0 && moreApps.length === 0" class="nc-rail__empty">
 				{{ t('sidebar', 'All apps are hidden.') }}
 			</p>
 		</nav>
@@ -89,10 +126,10 @@
 				<RailItem
 					v-if="showMoreApps"
 					:href="moreAppsHref"
-					:name="t('sidebar', 'More apps')"
+					:name="t('sidebar', 'Manage apps')"
 					:iconPath="mdiViewGridPlusOutline"
 					:active="moreAppsActive"
-					@hint="(target, label, immediate) => hint(t('sidebar', 'More apps'), target, label, immediate)"
+					@hint="(target, label, immediate) => hint(t('sidebar', 'Manage apps'), target, label, immediate)"
 					@unhint="hideTooltip" />
 				<li v-if="!isMobile" class="nc-rail-item">
 					<button
@@ -103,9 +140,9 @@
 						:aria-label="toggleLabel"
 						aria-keyshortcuts="Alt+Shift+S"
 						@click="toggleExpanded"
-						@pointerenter="hintToggle($event)"
+						@pointerenter="hintButton($event, toggleLabel)"
 						@pointerleave="hideTooltip"
-						@focus="hintToggleFocus($event)"
+						@focus="hintButtonFocus($event, toggleLabel)"
 						@blur="hideTooltip">
 						<span class="nc-rail-item__icon">
 							<RailIcon class="nc-rail__chevron" :path="expanded ? mdiChevronDoubleLeft : mdiChevronDoubleRight" />
@@ -129,11 +166,11 @@
 <script setup lang="ts">
 import type { NavigationEntry, RailConfig } from '../types.ts'
 
-import { mdiChevronDoubleLeft, mdiChevronDoubleRight, mdiClose, mdiMenu, mdiViewGridPlusOutline } from '@mdi/js'
+import { mdiChevronDoubleLeft, mdiChevronDoubleRight, mdiChevronDown, mdiChevronUp, mdiClose, mdiDockLeft, mdiMenu, mdiViewGridPlusOutline } from '@mdi/js'
 import { getCurrentUser } from '@nextcloud/auth'
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { loadState } from '@nextcloud/initial-state'
-import { t } from '@nextcloud/l10n'
+import { n, t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import RailIcon from './RailIcon.vue'
@@ -143,7 +180,7 @@ import { useLayoutGuard } from '../composables/useLayoutGuard.ts'
 import { useMediaQuery } from '../composables/useMediaQuery.ts'
 import { useTooltip } from '../composables/useTooltip.ts'
 import { RAIL_CONFIG_EVENT } from '../events.ts'
-import { applyRailVariables, iconMask, safeHref } from '../theme.ts'
+import { applyAppMenu, applyRailVariables, HIDDEN_CLASS, iconMask, safeHref } from '../theme.ts'
 
 const FALLBACK: RailConfig = {
 	theme: { mode: 'theme', variables: {} },
@@ -152,10 +189,16 @@ const FALLBACK: RailConfig = {
 	showLogo: true,
 	showMoreApps: true,
 	hiddenApps: [],
+	collapsedApps: [],
+	moreOpen: false,
+	railHidden: false,
+	keepAppMenu: false,
 }
 
 const config = ref<RailConfig>(loadState<RailConfig>('sidebar', 'rail', FALLBACK))
 const expanded = ref(config.value.expanded)
+const moreOpen = ref(config.value.moreOpen)
+const railHidden = ref(config.value.railHidden)
 const entries = ref<NavigationEntry[]>(loadState<NavigationEntry[]>('core', 'apps', []))
 const settingsEntries = ref<NavigationEntry[]>(listed(loadState<NavigationEntry[] | Record<string, NavigationEntry>>('core', 'settingsNavEntries', [])))
 const apps = computed(() => sorted(entries.value))
@@ -168,10 +211,14 @@ const isMobile = useMediaQuery('(max-width: 1024px)')
 const drawerOpen = ref(false)
 const panel = ref<HTMLElement | null>(null)
 const drawerButton = ref<HTMLButtonElement | null>(null)
+const moreList = ref<HTMLElement | null>(null)
 const rtl = document.documentElement.dir === 'rtl' || document.body?.dir === 'rtl'
 const { tooltip, show: showTooltip, hide: hideTooltip } = useTooltip()
 const isDesktop = computed(() => !isMobile.value)
-const { fullscreen } = useLayoutGuard(panel, isDesktop, rtl)
+const desktopHidden = computed(() => isDesktop.value && railHidden.value)
+// A hidden rail needs no room: the guard only fits content beside a rail that shows.
+const besideContent = computed(() => isDesktop.value && !railHidden.value)
+const { fullscreen } = useLayoutGuard(panel, besideContent, rtl)
 
 const headerLogo = document.getElementById('nextcloud')
 const logo = {
@@ -196,12 +243,32 @@ const layout = computed<'wide' | 'labeled' | 'compact'>(() => {
 	return config.value.showLabels ? 'labeled' : 'compact'
 })
 
-const visibleApps = computed(() => {
-	const hidden = new Set(config.value.hiddenApps)
-	return apps.value.filter((app) => app.active || !hidden.has(app.id))
-})
+// The open app always has an entry in the main list, wherever it was placed.
+const hiddenIds = computed(() => new Set(config.value.hiddenApps))
+const collapsedIds = computed(() => new Set(config.value.collapsedApps.filter((id) => !hiddenIds.value.has(id))))
+const visibleApps = computed(() => apps.value.filter((app) => app.active || (!hiddenIds.value.has(app.id) && !collapsedIds.value.has(app.id))))
+const moreApps = computed(() => apps.value.filter((app) => !app.active && collapsedIds.value.has(app.id)))
+const moreUnread = computed(() => moreApps.value.reduce((sum, app) => sum + (app.unread > 0 ? app.unread : 0), 0))
 
 const toggleLabel = computed(() => (expanded.value ? t('sidebar', 'Collapse sidebar') : t('sidebar', 'Expand sidebar')))
+
+const moreLabel = computed(() => {
+	if (moreOpen.value) {
+		return t('sidebar', 'Show fewer apps')
+	}
+	const count = moreApps.value.length
+	const label = n('sidebar', 'Show {count} more app', 'Show {count} more apps', count, { count })
+	return moreUnread.value > 0
+		? `${label}, ${n('sidebar', '{count} notification', '{count} notifications', moreUnread.value, { count: moreUnread.value })}`
+		: label
+})
+
+const headerButtonLabel = computed(() => {
+	if (isMobile.value) {
+		return t('sidebar', 'Open apps')
+	}
+	return railHidden.value ? t('sidebar', 'Show sidebar') : t('sidebar', 'Hide sidebar')
+})
 
 /**
  * Settings entries arrive as a list or as an object keyed by id.
@@ -243,21 +310,73 @@ function hint(name: string, target: HTMLElement, label: HTMLElement | null, imme
 }
 
 /**
- * @param event - pointer entering the expand button
+ * @param event - pointer entering a button of the rail
+ * @param text - what the button does
  */
-function hintToggle(event: PointerEvent): void {
+function hintButton(event: PointerEvent, text: string): void {
 	if (layout.value !== 'wide' && event.pointerType !== 'touch') {
-		showTooltip(event.currentTarget as HTMLElement, toggleLabel.value)
+		showTooltip(event.currentTarget as HTMLElement, text)
 	}
 }
 
 /**
- * @param event - focus on the expand button
+ * @param event - focus on a button of the rail
+ * @param text - what the button does
  */
-function hintToggleFocus(event: FocusEvent): void {
+function hintButtonFocus(event: FocusEvent, text: string): void {
 	const target = event.currentTarget as HTMLElement
 	if (layout.value !== 'wide' && target.matches(':focus-visible')) {
-		showTooltip(target, toggleLabel.value, true)
+		showTooltip(target, text, true)
+	}
+}
+
+/**
+ * Show or fold the apps under "More" and remember the choice.
+ * The view changes first; a failed save puts it back.
+ */
+async function toggleMore(): Promise<void> {
+	hideTooltip()
+	const next = !moreOpen.value
+	moreOpen.value = next
+	if (next) {
+		nextTick(() => moreList.value?.scrollIntoView({ block: 'nearest' }))
+	}
+	try {
+		const { rail } = await updatePreferences({ moreOpen: next })
+		config.value = rail
+	} catch {
+		moreOpen.value = !next
+	}
+}
+
+/**
+ * Hide the rail on the desktop, or bring it back, and remember the choice.
+ * Focus never stays inside a hidden rail.
+ */
+async function toggleRailHidden(): Promise<void> {
+	hideTooltip()
+	const next = !railHidden.value
+	if (next && panel.value?.contains(document.activeElement)) {
+		drawerButton.value?.focus()
+	}
+	railHidden.value = next
+	try {
+		const { rail } = await updatePreferences({ railHidden: next })
+		config.value = rail
+	} catch {
+		railHidden.value = !next
+	}
+}
+
+/**
+ * The header button opens the drawer on small screens and hides or shows
+ * the rail on the desktop.
+ */
+function onHeaderButton(): void {
+	if (isMobile.value) {
+		openDrawer()
+	} else {
+		toggleRailHidden()
 	}
 }
 
@@ -336,12 +455,22 @@ function onPanelKeydown(event: KeyboardEvent): void {
 }
 
 /**
- * Alt+Shift+S toggles the rail on desktop and the drawer on small screens.
+ * Alt+Shift+S switches between the narrow and the wide rail on the desktop and
+ * toggles the drawer on small screens. Alt+Shift+H hides or shows the rail on
+ * the desktop.
  *
  * @param event - key pressed anywhere on the page
  */
 function onGlobalKeydown(event: KeyboardEvent): void {
-	if (!event.altKey || !event.shiftKey || event.code !== 'KeyS' || fullscreen.value) {
+	if (!event.altKey || !event.shiftKey || fullscreen.value) {
+		return
+	}
+	if (event.code === 'KeyH' && !isMobile.value) {
+		event.preventDefault()
+		toggleRailHidden()
+		return
+	}
+	if (event.code !== 'KeyS') {
 		return
 	}
 	event.preventDefault()
@@ -353,6 +482,10 @@ function onGlobalKeydown(event: KeyboardEvent): void {
 		}
 		return
 	}
+	if (railHidden.value) {
+		toggleRailHidden()
+		return
+	}
 	toggleExpanded()
 }
 
@@ -362,6 +495,8 @@ function onGlobalKeydown(event: KeyboardEvent): void {
 function onConfigSaved(next: RailConfig): void {
 	config.value = next
 	expanded.value = next.expanded
+	moreOpen.value = next.moreOpen
+	railHidden.value = next.railHidden
 }
 
 /**
@@ -372,7 +507,16 @@ function onAppsRefresh(payload: { apps: NavigationEntry[] }): void {
 	entries.value = payload.apps
 }
 
-watch([config, expanded], () => applyRailVariables(config.value, expanded.value))
+/**
+ * Bring the page around the rail in line with its state.
+ */
+function applyState(): void {
+	applyRailVariables(config.value, expanded.value, desktopHidden.value)
+	applyAppMenu(config.value.keepAppMenu)
+	document.documentElement.classList.toggle(HIDDEN_CLASS, desktopHidden.value)
+}
+
+watch([config, expanded, desktopHidden], applyState)
 
 watch(isMobile, (mobile) => {
 	hideTooltip()
@@ -393,7 +537,7 @@ watch(drawerOpen, (open) => {
 })
 
 onMounted(() => {
-	applyRailVariables(config.value, expanded.value)
+	applyState()
 	panel.value?.querySelector<HTMLElement>('.nc-rail__nav [aria-current="page"]')?.scrollIntoView({ block: 'nearest' })
 	subscribe('nextcloud:app-menu.refresh', onAppsRefresh)
 	subscribe(RAIL_CONFIG_EVENT, onConfigSaved)
@@ -406,6 +550,7 @@ onBeforeUnmount(() => {
 	unsubscribe(RAIL_CONFIG_EVENT, onConfigSaved)
 	window.removeEventListener('keydown', onGlobalKeydown)
 	window.removeEventListener('resize', hideTooltip)
+	document.documentElement.classList.remove(HIDDEN_CLASS)
 })
 </script>
 
@@ -419,13 +564,17 @@ onBeforeUnmount(() => {
 
 /* The page around the rail. This stylesheet is only added to the logged-in layout. */
 
-#header-start__appmenu,
-#header .app-menu {
+/* The server hides the app menu with the same rule inline for the first paint,
+   see RailConfig::appMenuCss(). */
+
+html.nc-sidebar-hide-app-menu #header-start__appmenu,
+html.nc-sidebar-hide-app-menu #header .app-menu {
 	display: none;
 }
 
 @media (min-width: 1025px) {
-	#header:not(.header-guest) #nextcloud {
+	/* The rail carries the logo, unless the rail is hidden. */
+	html:not(.nc-sidebar-hidden) #header:not(.header-guest) #nextcloud {
 		display: none;
 	}
 
@@ -475,7 +624,8 @@ html.nc-sidebar-fullscreen body {
 	--nc-sidebar-width: 0px !important;
 }
 
-/* Menu button in the header, small screens only */
+/* Button in the header: opens the drawer on small screens, hides or shows
+   the rail on the desktop. */
 
 #nc-sidebar-toggle-slot,
 #nc-sidebar-current-slot {
@@ -521,36 +671,30 @@ html.nc-sidebar-fullscreen body {
 }
 
 #nc-sidebar-toggle-slot .nc-rail-drawer-button {
-	display: none;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--default-clickable-area, 34px);
+	height: var(--default-clickable-area, 34px);
+	min-height: 0;
+	margin: 0;
+	margin-inline: 6px 2px;
+	padding: 0;
+	border: none;
+	border-radius: var(--border-radius-element, 8px);
+	background: transparent;
+	color: var(--color-background-plain-text);
+	cursor: pointer;
 }
 
-@media (max-width: 1024px) {
-	#nc-sidebar-toggle-slot .nc-rail-drawer-button {
-		display: inline-flex;
-		flex: none;
-		align-items: center;
-		justify-content: center;
-		width: var(--default-clickable-area, 34px);
-		height: var(--default-clickable-area, 34px);
-		min-height: 0;
-		margin: 0;
-		margin-inline: 6px 2px;
-		padding: 0;
-		border: none;
-		border-radius: var(--border-radius-element, 8px);
-		background: transparent;
-		color: var(--color-background-plain-text);
-		cursor: pointer;
-	}
+#nc-sidebar-toggle-slot .nc-rail-drawer-button:hover {
+	background-color: color-mix(in srgb, currentColor 14%, transparent);
+}
 
-	#nc-sidebar-toggle-slot .nc-rail-drawer-button:hover {
-		background-color: color-mix(in srgb, currentColor 14%, transparent);
-	}
-
-	#nc-sidebar-toggle-slot .nc-rail-drawer-button:focus-visible {
-		outline: 2px solid currentColor;
-		outline-offset: 0;
-	}
+#nc-sidebar-toggle-slot .nc-rail-drawer-button:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 0;
 }
 
 /* Rail surface */
@@ -577,6 +721,20 @@ html.nc-sidebar-fullscreen body {
 @media (prefers-reduced-motion: no-preference) {
 	.nc-rail {
 		transition: width 220ms var(--nc-sidebar-ease);
+	}
+}
+
+/* Hidden on the desktop: the width variable is 0, the rail folds away with it. */
+
+.nc-rail--hidden {
+	overflow: hidden;
+	border-inline-end-width: 0;
+	visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.nc-rail--hidden {
+		transition: width 220ms var(--nc-sidebar-ease), visibility 0s linear 220ms;
 	}
 }
 
@@ -704,6 +862,19 @@ html.nc-sidebar-fullscreen body {
 .nc-rail--labeled .nc-rail__list {
 	gap: 2px;
 	padding: 4px 6px;
+}
+
+/* "More": a divider, the button, and the apps it unfolds */
+
+.nc-rail-item--more {
+	margin-block-start: 4px;
+	padding-block-start: 6px;
+	border-block-start: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.nc-rail__list--more,
+.nc-rail--labeled .nc-rail__list--more {
+	padding-block-start: 0;
 }
 
 .nc-rail__foot {
@@ -848,6 +1019,22 @@ html.nc-sidebar-fullscreen body {
 
 .nc-rail-item__count {
 	margin-inline-start: auto;
+}
+
+.nc-rail-item__count--plain {
+	background-color: color-mix(in srgb, currentColor 16%, transparent);
+	color: inherit;
+}
+
+.nc-rail-item__dot {
+	position: absolute;
+	top: -3px;
+	inset-inline-end: -5px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: var(--color-error, #db0606);
+	box-shadow: 0 0 0 2px var(--nc-sidebar-background, var(--color-primary));
 }
 
 /* Compact: icons only, names in tooltips */

@@ -11,6 +11,9 @@ namespace OCA\Sidebar\Model;
 
 /**
  * Instance-wide defaults and what people may change for themselves.
+ *
+ * An app is shown, collapsed under "More", or hidden. Hidden wins when an
+ * app is in both lists.
  */
 final readonly class AdminSettings implements \JsonSerializable {
 	private const KEYS = [
@@ -21,6 +24,8 @@ final readonly class AdminSettings implements \JsonSerializable {
 		'showLogo',
 		'showMoreApps',
 		'hiddenApps',
+		'collapsedApps',
+		'keepAppMenu',
 		'allowUserColor',
 		'allowUserLayout',
 		'allowUserHiddenApps',
@@ -34,6 +39,8 @@ final readonly class AdminSettings implements \JsonSerializable {
 		public bool $showLogo,
 		public bool $showMoreApps,
 		public AppIdList $hiddenApps,
+		public AppIdList $collapsedApps,
+		public bool $keepAppMenu,
 		public bool $allowUserColor,
 		public bool $allowUserLayout,
 		public bool $allowUserHiddenApps,
@@ -49,6 +56,8 @@ final readonly class AdminSettings implements \JsonSerializable {
 			showLogo: true,
 			showMoreApps: true,
 			hiddenApps: AppIdList::empty(),
+			collapsedApps: AppIdList::empty(),
+			keepAppMenu: false,
 			allowUserColor: true,
 			allowUserLayout: true,
 			allowUserHiddenApps: true,
@@ -71,6 +80,8 @@ final readonly class AdminSettings implements \JsonSerializable {
 			showLogo: $input->bool('showLogo', $this->showLogo),
 			showMoreApps: $input->bool('showMoreApps', $this->showMoreApps),
 			hiddenApps: $input->appIds('hiddenApps', $this->hiddenApps),
+			collapsedApps: $input->appIds('collapsedApps', $this->collapsedApps),
+			keepAppMenu: $input->bool('keepAppMenu', $this->keepAppMenu),
 			allowUserColor: $input->bool('allowUserColor', $this->allowUserColor),
 			allowUserLayout: $input->bool('allowUserLayout', $this->allowUserLayout),
 			allowUserHiddenApps: $input->bool('allowUserHiddenApps', $this->allowUserHiddenApps),
@@ -84,7 +95,7 @@ final readonly class AdminSettings implements \JsonSerializable {
 	}
 
 	/**
-	 * @return array{colorMode: string, customColor: ?string, showLabels: bool, expandedByDefault: bool, showLogo: bool, showMoreApps: bool, hiddenApps: list<string>, allowUserColor: bool, allowUserLayout: bool, allowUserHiddenApps: bool}
+	 * @return array{colorMode: string, customColor: ?string, showLabels: bool, expandedByDefault: bool, showLogo: bool, showMoreApps: bool, hiddenApps: list<string>, collapsedApps: list<string>, keepAppMenu: bool, allowUserColor: bool, allowUserLayout: bool, allowUserHiddenApps: bool}
 	 */
 	#[\Override]
 	public function jsonSerialize(): array {
@@ -96,6 +107,8 @@ final readonly class AdminSettings implements \JsonSerializable {
 			'showLogo' => $this->showLogo,
 			'showMoreApps' => $this->showMoreApps,
 			'hiddenApps' => $this->hiddenApps->toList(),
+			'collapsedApps' => $this->collapsedApps->toList(),
+			'keepAppMenu' => $this->keepAppMenu,
 			'allowUserColor' => $this->allowUserColor,
 			'allowUserLayout' => $this->allowUserLayout,
 			'allowUserHiddenApps' => $this->allowUserHiddenApps,

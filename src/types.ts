@@ -16,6 +16,9 @@ export interface NavigationEntry {
 
 export type ColorMode = 'theme' | 'neutral' | 'custom'
 
+/** Where an app sits: in the sidebar, under "More", or nowhere */
+export type Placement = 'visible' | 'more' | 'hidden'
+
 export interface RailTheme {
 	mode: ColorMode
 	variables: Record<string, string>
@@ -28,6 +31,10 @@ export interface RailConfig {
 	showLogo: boolean
 	showMoreApps: boolean
 	hiddenApps: string[]
+	collapsedApps: string[]
+	moreOpen: boolean
+	railHidden: boolean
+	keepAppMenu: boolean
 }
 
 export interface AdminSettings {
@@ -38,6 +45,8 @@ export interface AdminSettings {
 	showLogo: boolean
 	showMoreApps: boolean
 	hiddenApps: string[]
+	collapsedApps: string[]
+	keepAppMenu: boolean
 	allowUserColor: boolean
 	allowUserLayout: boolean
 	allowUserHiddenApps: boolean
@@ -47,8 +56,13 @@ export interface UserPreferences {
 	colorMode: ColorMode | null
 	customColor: string | null
 	showLabels: boolean | null
+	keepAppMenu: boolean | null
 	hiddenApps: string[]
+	collapsedApps: string[]
+	pinnedApps: string[]
 	expanded: boolean | null
+	moreOpen: boolean | null
+	railHidden: boolean | null
 }
 
 export interface NavigationApp {

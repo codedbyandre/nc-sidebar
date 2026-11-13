@@ -59,7 +59,7 @@ This file is generated from multiple sources. Included packages:
 	- version: 7.8.6
 	- license: ISC
 - sidebar
-	- version: 0.3.0
+	- version: 0.4.0
 	- license: AGPL-3.0-or-later
 - vite
 	- version: 7.3.8

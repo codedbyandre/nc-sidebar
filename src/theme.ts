@@ -144,10 +144,11 @@ export function widthVariable(expanded: boolean, showLabels: boolean): string {
  *
  * @param config - resolved rail configuration
  * @param expanded - current expanded state, which can differ from the stored one
+ * @param hidden - the rail is hidden and takes no width
  */
-export function applyRailVariables(config: RailConfig, expanded: boolean): void {
+export function applyRailVariables(config: RailConfig, expanded: boolean, hidden = false): void {
 	const root = document.body.style
-	root.setProperty('--nc-sidebar-width', widthVariable(expanded, config.showLabels))
+	root.setProperty('--nc-sidebar-width', hidden ? '0px' : widthVariable(expanded, config.showLabels))
 	for (const name of ALLOWED_THEME_VARIABLES) {
 		root.removeProperty(name)
 	}
@@ -157,4 +158,20 @@ export function applyRailVariables(config: RailConfig, expanded: boolean): void 
 		}
 		root.setProperty(name, value)
 	}
+}
+
+export const HIDDEN_CLASS = 'nc-sidebar-hidden'
+const HIDE_APP_MENU_CLASS = 'nc-sidebar-hide-app-menu'
+const APP_MENU_STYLE_ID = 'nc-sidebar-app-menu'
+
+/**
+ * Show or hide the app menu in the header. The server hides it with an inline
+ * style for the first paint; from here on a class does, so a saved setting
+ * applies without a reload.
+ *
+ * @param keep - the app menu stays in the header
+ */
+export function applyAppMenu(keep: boolean): void {
+	document.documentElement.classList.toggle(HIDE_APP_MENU_CLASS, !keep)
+	document.getElementById(APP_MENU_STYLE_ID)?.remove()
 }

@@ -43,7 +43,7 @@ export function overlaps(rail: DOMRectReadOnly, content: DOMRectReadOnly, rtl: b
  *   does not apply, gets the offset as an inline style instead.
  *
  * @param rail - the rail's panel
- * @param desktop - the rail is a column beside the content, not a drawer
+ * @param desktop - the rail is a visible column beside the content, not a drawer or hidden
  * @param rtl - right-to-left layout
  */
 export function useLayoutGuard(rail: Ref<HTMLElement | null>, desktop: Ref<boolean>, rtl: boolean): { fullscreen: Ref<boolean> } {

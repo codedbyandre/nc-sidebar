@@ -46,6 +46,10 @@ final class BeforeTemplateRenderedListener implements IEventListener {
 		$config = $this->railConfig->forUser($userId);
 		$this->initialState->provideInitialState('rail', $config);
 		Util::addHeader('style', ['id' => 'nc-sidebar-variables'], $config->css());
+		$appMenuCss = $config->appMenuCss();
+		if ($appMenuCss !== null) {
+			Util::addHeader('style', ['id' => 'nc-sidebar-app-menu'], $appMenuCss);
+		}
 		Util::addScript(Application::APP_ID, Application::APP_ID . '-rail');
 		Util::addStyle(Application::APP_ID, Application::APP_ID . '-rail');
 	}

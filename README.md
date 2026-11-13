@@ -21,7 +21,7 @@ Enable **Sidebar** under **Apps**, or from the server:
 occ app:enable sidebar
 ```
 
-The apps menu in the header is replaced by a column of icons on the left. The header shows the open app by name. Search, notifications, and the user menu stay in the header. On screens up to 1024px wide the column becomes a drawer, opened from a menu button in the header.
+The apps menu in the header is replaced by a column of icons on the left. The header shows the open app by name. Search, notifications, and the user menu stay in the header. The button at the start of the header hides the column and brings it back, as does Alt+Shift+H. On screens up to 1024px wide the column becomes a drawer, opened from that button.
 
 More pictures for a handbook are in `docs/screenshots/`. `files-wide.png` is the wide column, `drawer.png` is the small-screen drawer, and `personal.png` is the personal settings page.
 
@@ -29,7 +29,11 @@ More pictures for a handbook are in `docs/screenshots/`. `files-wide.png` is the
 
 Open **Administration settings**, then **Sidebar**.
 
-The administrator sets the color, the default width, the logo, and which apps are hidden for everyone. People may override the color, the labels, and extra hidden apps only when the administrator allows it. Everyone can still switch between the narrow and the wide column. Hiding an app removes it from the sidebar only. The app stays reachable by its address.
+The administrator sets the color, the default width, the logo, and where each app appears: in the sidebar, under **More**, or hidden. Apps under **More** unfold with one click below the other apps, and the sidebar remembers for each person whether they are unfolded. Hiding an app removes it from the sidebar only. The app stays reachable by its address.
+
+People may override the color, the labels, and where apps appear only when the administrator allows it. They can show an app the administrator moved under **More**, but not one the administrator hid. Everyone can still switch between the narrow and the wide column and hide the column.
+
+The administrator can keep Nextcloud's app menu in the header next to the sidebar. People may choose that for themselves when the administrator allows layout changes.
 
 ## Privacy
 
